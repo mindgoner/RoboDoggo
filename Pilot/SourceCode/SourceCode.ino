@@ -9,6 +9,5 @@ void setup() {
 }
 
 void loop() {
-  Pilot.transmit();
-  delay(2000);
+  Pilot.transmitOnChange();
 }

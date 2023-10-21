@@ -18,8 +18,9 @@ HardPilot::HardPilot() {
   String readingsJSON = "";
 
   // Transmitter module variables
-  RF24 transmitter(9, 10);
+  RF24 transmitter(9,10);
   this->transmitter = transmitter;
+  const uint64_t transmitterPipe=0xDEADBEEF01;
 }
 
 void HardPilot::initialize(bool debug = false) {
@@ -38,21 +39,41 @@ void HardPilot::initialize(bool debug = false) {
   // Initialize transmitter (loop until connected successfully)
   while(!this->transmitter.begin()){ 
     if(this->debug){   
-      Serial.println(F("Transmitter hardware is not responding!"));
+      Serial.println("Transmitter hardware is not responding!");
     }
     delay(1000); // Try again after 1 second
   }
 
-  // Set receiver address:
-  byte receiverAddress[] = "Node";
-  this->receiverAddress[sizeof(receiverAddress)] = receiverAddress;
-  this->transmitter.setPALevel(RF24_PA_LOW); // RF24_PA_MAX is default.
-  this->transmitter.setPayloadSize(sizeof(String));
-  this->transmitter.openWritingPipe(this->receiverAddress); // Open connection with transmitter
+  this->configureTransmitterDefaultValues();
 
 }
 
+
+int HardPilot::digitalizeAnalogInput(int analogInput){
+  if(analogInput < 400){
+    return -1;
+  }else if(analogInput > 600){
+    return 1;
+  }else{
+    return 0;  
+  }
+}
+
+
+void HardPilot::configureTransmitterDefaultValues() {
+  this->transmitter.setPALevel(RF24_PA_LOW);  // RF24_PA_MAX is default.
+  this->transmitter.openWritingPipe(this->transmitterPipe);
+  this->transmitter.setPayloadSize(sizeof(String));
+  this->transmitter.setAutoAck(false);
+  this->transmitter.setDataRate(RF24_250KBPS);
+  //this->transmitter.printDetails();
+  this->transmitter.stopListening();
+}
+
 void HardPilot::readInput() {
+
+  this->readingsJSON = "";
+  
   this->readingsTable["leftJoystick"]["button"] = !digitalRead(2);
   this->readingsTable["rightJoystick"]["button"] = !digitalRead(3);
   this->readingsTable["button"]["1"] = !digitalRead(4);
@@ -61,12 +82,12 @@ void HardPilot::readInput() {
   this->readingsTable["button"]["4"] = !digitalRead(7);
   this->readingsTable["switch"]["1"] = !digitalRead(8);
 
-  this->readingsTable["leftJoystick"]["axisX"] = analogRead(A0);
-  this->readingsTable["leftJoystick"]["axisY"] = analogRead(A1);
-  this->readingsTable["rightJoystick"]["axisX"] = analogRead(A2);
-  this->readingsTable["rightJoystick"]["axisY"]  = analogRead(A3);
-  this->readingsTable["potentiometer"]["1"]  = analogRead(A6);
-  this->readingsTable["potentiometer"]["2"] = analogRead(A7);
+  this->readingsTable["leftJoystick"]["axisX"] = this->digitalizeAnalogInput(analogRead(A0));
+  this->readingsTable["leftJoystick"]["axisY"] = this->digitalizeAnalogInput(analogRead(A1));
+  this->readingsTable["rightJoystick"]["axisX"] = this->digitalizeAnalogInput(analogRead(A2));
+  this->readingsTable["rightJoystick"]["axisY"]  = this->digitalizeAnalogInput(analogRead(A3));
+  this->readingsTable["potentiometer"]["1"]  = (int) analogRead(A6)/100;
+  this->readingsTable["potentiometer"]["2"] = (int) analogRead(A7)/100;
 
   // Serialize data to String
   serializeJson(this->readingsTable, this->readingsJSON);
@@ -79,30 +100,63 @@ void HardPilot::readInput() {
 
 
 void HardPilot::broadcast() {
-
-  // Prepare data to be transmitted
-  uint8_t data[this->readingsJSON.length() + 1];
-  this->readingsJSON.getBytes(data, this->readingsJSON.length() + 1);
+  
+  this->configureTransmitterDefaultValues();
 
   // Write data and track the time:
   unsigned long start_timer = micros();
-  bool report = this->transmitter.write(&data, sizeof(data));  // transmit & save the report
+  bool report = this->transmitter.write(this->readingsJSON.c_str(), (this->readingsJSON.length() + 1) );  // +1 na znak null
   unsigned long end_timer = micros();
 
  if(this->debug){
     if (report) {
-      Serial.print(F("Transmission successful! "));
-      Serial.print(F("Transmission time = "));
-      Serial.print(end_timer - start_timer);  // Print transmitions time
-      Serial.println(F(" us."));
+      //Serial.print("Transmission successful! Transmission time = ");
+      //Serial.print(end_timer - start_timer);  // Print transmitions time
+      //Serial.println(" us.");
+      Serial.println(this->readingsJSON);
     } else {
-      Serial.println(F("Transmission failed or timed out")); // Error while broadcasting.
+      Serial.println("Transmission failed or timed out"); // Error while broadcasting.
     }
  }
 }
 
 
-void HardPilot::transmit() {
+void HardPilot::transmit(int transmissionDelay = 250) {
+  if(this->debug){
+    if(!this->transmitter.isChipConnected()){ // Check whether transmitter is connected
+      Serial.println("Transmitter is not connected!");
+    }else{
+      // Everything should be okay, execute:
+      this->readInput();
+      this->broadcast();
+    }  
+  }else{
+    // Just read and broadcast values.
+    this->readInput();
+    this->broadcast();
+  }
+  delay(transmissionDelay);
+}
+
+void HardPilot::transmitOnChange(int postTransmissionDelay = 100) {
+  this->previousReadingsJSON = this->readingsJSON;
   this->readInput();
-  this->broadcast();
+
+  // Transmit on change, so check whether JSON output is different than previous one
+  if(this->previousReadingsJSON != this->readingsJSON){
+    if(this->debug){
+      if(!this->transmitter.isChipConnected()){ // Check whether transmitter is connected
+        Serial.println("Transmitter is not connected!");
+      }else{
+        // Everything should be okay, execute:
+        this->readInput();
+        this->broadcast();
+      }  
+    }else{
+      // Just read and broadcast values.
+      this->readInput();
+      this->broadcast();
+    }
+    delay(postTransmissionDelay);
+  }
 }
