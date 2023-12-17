@@ -14,8 +14,8 @@
 #include "printf.h"
 #include "RF24.h"
 
-#define CE_PIN 9
-#define CSN_PIN 10
+#define CE_PIN 11
+#define CSN_PIN 12
 // instantiate an object for the nRF24L01 transceiver
 RF24 radio(CE_PIN, CSN_PIN);
 
