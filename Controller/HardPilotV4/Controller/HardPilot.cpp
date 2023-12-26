@@ -125,38 +125,23 @@ void HardPilot::transmit(int transmissionDelay = 250) {
   if(this->debug){
     if(!this->transmitter.isChipConnected()){ // Check whether transmitter is connected
       Serial.println("Transmitter is not connected!");
-    }else{
-      // Everything should be okay, execute:
-      this->readInput();
-      this->broadcast();
-    }  
-  }else{
-    // Just read and broadcast values.
-    this->readInput();
+    }
     this->broadcast();
-  }
   delay(transmissionDelay);
 }
 
 void HardPilot::transmitOnChange(int postTransmissionDelay = 100) {
   this->previousReadingsJSON = this->readingsJSON;
   this->readInput();
-
-  // Transmit on change, so check whether JSON output is different than previous one
   if(this->previousReadingsJSON != this->readingsJSON){
-    if(this->debug){
-      if(!this->transmitter.isChipConnected()){ // Check whether transmitter is connected
+    
+    if(this->debug && !this->transmitter.isChipConnected()){
         Serial.println("Transmitter is not connected!");
-      }else{
-        // Everything should be okay, execute:
-        this->readInput();
-        this->broadcast();
-      }  
-    }else{
-      // Just read and broadcast values.
-      this->readInput();
-      this->broadcast();
     }
+
+    // Broadcast values.
+    this->broadcast();
     delay(postTransmissionDelay);
   }
 }
+
