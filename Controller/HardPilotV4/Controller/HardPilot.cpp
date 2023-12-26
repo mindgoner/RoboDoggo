@@ -122,11 +122,10 @@ void HardPilot::broadcast() {
 
 
 void HardPilot::transmit(int transmissionDelay = 250) {
-  if(this->debug){
-    if(!this->transmitter.isChipConnected()){ // Check whether transmitter is connected
+  if(this->debug && !this->transmitter.isChipConnected()){
       Serial.println("Transmitter is not connected!");
-    }
-    this->broadcast();
+  }
+  this->broadcast();
   delay(transmissionDelay);
 }
 
@@ -144,4 +143,3 @@ void HardPilot::transmitOnChange(int postTransmissionDelay = 100) {
     delay(postTransmissionDelay);
   }
 }
-
