@@ -11,7 +11,7 @@ DoggoStepper::DoggoStepper(int enPin, int stepPin, int dirPin) {
 
 void DoggoStepper::begin() {
   pinMode(_enPin, OUTPUT);
-  digitalWrite(_enPin, LOW); // Wyłącz silnik na starcie
+  digitalWrite(_enPin, HIGH); // Wyłącz silnik na starcie
   _state = true;
   _stepper->setMaxSpeed(800); // Domyślna maksymalna prędkość
   _stepper->setAcceleration(4000); // Domyślne przyspieszenie
@@ -29,6 +29,7 @@ void DoggoStepper::moveTo(long position) {
   _stepper->moveTo(position);
   _isRunning = true;
   _position = position;
+  this->enable();
 }
 
 void DoggoStepper::run() {

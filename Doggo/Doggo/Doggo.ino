@@ -1,6 +1,9 @@
 #include "DoggoStepper.h"
 #include <Servo.h>
 
+// Serial only
+int incomingByte = 0;
+
 // Define servos:
 Servo leftFrontServo;
 Servo rightFrontServo;
@@ -17,7 +20,6 @@ DoggoStepper rightFrontJoint = DoggoStepper(37, 38, 39);
 DoggoStepper leftBackJoint = DoggoStepper(40, 41, 42);
 DoggoStepper rightBackJoint = DoggoStepper(43, 44, 45);
 
-int incomingByte = 0;
 
 void runSteppers(){
   
@@ -59,21 +61,6 @@ void runSteppers(){
 }
 
 void setup() {
-  
-  // Configure servos (attach pins):
-  leftFrontServo.attach(3);
-  rightFrontServo.attach(4);
-  leftBackServo.attach(5);
-  rightBackServo.attach(6);
-  // Set servos in  home  position(90deg):
-  leftFrontServo.write(90);
-  rightFrontServo.write(90);
-  leftBackServo.write(90);
-  rightBackServo.write(90);
-
-  delay(3000);
-
-  
   // Configure steppers:
   leftFrontLever.begin();
   rightFrontLever.begin();
@@ -89,6 +76,81 @@ void setup() {
 
 void loop(){
   runSteppers();
+
+  // Wait for serial
+   if (Serial.available() > 0) {
+    incomingByte = Serial.read();
+
+    if(incomingByte == 49){
+      // Jeżeli serial  monitor odebrał 1:
+    
+      // Configure servos (attach pins):
+      leftFrontServo.attach(3);
+      rightFrontServo.attach(4);
+      leftBackServo.attach(5);
+      rightBackServo.attach(6);
+      // Set servos in  home  position(90deg):
+      leftFrontServo.write(90);
+      rightFrontServo.write(90);
+      leftBackServo.write(90);
+      rightBackServo.write(90);
+
+      leftFrontJoint.enable();
+      rightFrontJoint.enable();
+      leftBackJoint.enable();
+      rightBackJoint.enable();
+      
+      rightFrontLever.moveTo(rightFrontLever.position()-400);
+      leftFrontLever.moveTo(leftFrontLever.position()-400);
+      rightBackLever.moveTo(rightBackLever.position()-400);
+      leftBackLever.moveTo(leftBackLever.position()-400);
+
+      Serial.println(rightFrontLever.position());
+      
+    }else if(incomingByte == 50){  
+      // Jeżeli serial  monitor odebrał 2:
+      leftFrontServo.detach();
+      rightFrontServo.detach();
+      leftBackServo.detach();
+      rightBackServo.detach();
+      rightFrontLever.disable();
+      leftFrontLever.disable();
+      rightBackLever.disable();
+      leftBackLever.disable();
+      
+      leftFrontJoint.disable();
+      rightFrontJoint.disable();
+      leftBackJoint.disable();
+      rightBackJoint.disable();
+    }else if(incomingByte == 51){
+      // Jeżeli serial  monitor odebrał 1:
+    
+      // Configure servos (attach pins):
+      leftFrontServo.attach(3);
+      rightFrontServo.attach(4);
+      leftBackServo.attach(5);
+      rightBackServo.attach(6);
+      // Set servos in  home  position(90deg):
+      leftFrontServo.write(90);
+      rightFrontServo.write(90);
+      leftBackServo.write(90);
+      rightBackServo.write(90);
+
+      leftFrontJoint.enable();
+      rightFrontJoint.enable();
+      leftBackJoint.enable();
+      rightBackJoint.enable();
+      
+      rightFrontLever.moveTo(rightFrontLever.position()+400);
+      leftFrontLever.moveTo(leftFrontLever.position()+400);
+      rightBackLever.moveTo(rightBackLever.position()+400);
+      leftBackLever.moveTo(leftBackLever.position()+400);
+
+      Serial.println(rightFrontLever.position());
+    }
+  }
+
+  
 }
 
 
