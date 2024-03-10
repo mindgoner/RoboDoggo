@@ -9,7 +9,7 @@ class HardPilot {
     char readings[16], previousReadings[16];
     
     HardPilot();
-    void initialize(bool enableDebug = false);
+    void initialize(bool enableDebug);
     bool reactOnChange();
     void readInput();
 
