@@ -1,5 +1,10 @@
 #include "DoggoStepper.h"
 #include <Servo.h>
+#include <SPI.h>
+#include <RF24.h>
+
+RF24 Receiver(11, 12);  // Inicjalizacja obiektu radio na pinach 9 (CE) i 10 (CSN)
+const byte address[6] = "00001";  // Adres odbiornika
 
 // Serial only
 int incomingByte = 0;
@@ -19,6 +24,9 @@ DoggoStepper leftFrontJoint = DoggoStepper(34, 35, 36);
 DoggoStepper rightFrontJoint = DoggoStepper(37, 38, 39);
 DoggoStepper leftBackJoint = DoggoStepper(40, 41, 42);
 DoggoStepper rightBackJoint = DoggoStepper(43, 44, 45);
+
+DoggoStepper* currentStepper;
+int currentStepperInt = 1;
 
 
 void runSteppers(){
@@ -60,7 +68,58 @@ void runSteppers(){
   }
 }
 
+void switchStepperFunc(char znak){
+  if(znak == '-'){
+    currentStepperInt -= 1;
+    if(currentStepperInt < 0){
+      currentStepperInt = 7;
+    }
+  }else if(znak == '+'){
+      currentStepperInt += 1;
+      if(currentStepperInt > 7){
+        currentStepperInt = 0;
+      }
+  }
+
+  switch(currentStepperInt){
+    case(0):
+        Serial.println("Wybrales silnik lewy przedni dzwignia");
+        currentStepper = &leftFrontLever;
+        break;
+    case(1):
+        Serial.println("Wybrales silnik prawy przedni dzwignia");
+        currentStepper = &rightFrontLever;
+        break;
+    case(2):
+        Serial.println("Wybrales silnik lewy tylny dzwignia");
+        currentStepper = &leftBackLever;
+        break;
+    case(3):
+        Serial.println("Wybrales silnik prawy tylny dzwignia");
+        currentStepper = &rightBackLever;
+        break;
+    case(4):
+        Serial.println("Wybrales silnik lewy przedni joint");
+        currentStepper = &leftFrontJoint;
+        break;
+    case(5):
+        Serial.println("Wybrales silnik prawy przedni joint");
+        currentStepper = &rightFrontJoint;
+        break;
+    case(6):
+        Serial.println("Wybrales silnik lewy tylny joint");
+        currentStepper = &leftBackJoint;
+        break;
+    case(7):
+        Serial.println("Wybrales silnik prawy tylny joint");
+        currentStepper = &rightBackJoint;
+        break;
+  }
+}
+
 void setup() {
+  Serial.begin(115200);
+  
   // Configure steppers:
   leftFrontLever.begin();
   rightFrontLever.begin();
@@ -70,12 +129,22 @@ void setup() {
   rightFrontJoint.begin();
   leftBackJoint.begin();
   rightBackJoint.begin();
-
-  Serial.begin(115200);
+  
+  Receiver.begin();
+  Receiver.openReadingPipe(1, address);
+  Receiver.startListening();
+  switchStepperFunc('-');
 }
 
 void loop(){
   runSteppers();
+
+   if (Receiver.available()) {
+    char receivedMessage[12] = {0}; // Przyjmij ciąg o długości 11 + znak końca null
+    Receiver.read(receivedMessage, sizeof(receivedMessage));
+    Serial.print("Odebrano: ");
+    Serial.println(receivedMessage);
+  }
 
   // Wait for serial
    if (Serial.available() > 0) {
@@ -100,10 +169,10 @@ void loop(){
       leftBackJoint.enable();
       rightBackJoint.enable();
       
-      rightFrontLever.moveTo(rightFrontLever.position()-400);
-      leftFrontLever.moveTo(leftFrontLever.position()-400);
-      rightBackLever.moveTo(rightBackLever.position()-400);
-      leftBackLever.moveTo(leftBackLever.position()-400);
+      rightFrontLever.moveTo(rightFrontLever.position()-300);
+      leftFrontLever.moveTo(leftFrontLever.position()-300);
+      rightBackLever.moveTo(rightBackLever.position()-300);
+      leftBackLever.moveTo(leftBackLever.position()-300);
 
       Serial.println(rightFrontLever.position());
       
@@ -123,7 +192,7 @@ void loop(){
       leftBackJoint.disable();
       rightBackJoint.disable();
     }else if(incomingByte == 51){
-      // Jeżeli serial  monitor odebrał 1:
+      // Jeżeli serial  monitor odebrał 3:
     
       // Configure servos (attach pins):
       leftFrontServo.attach(3);
@@ -141,73 +210,43 @@ void loop(){
       leftBackJoint.enable();
       rightBackJoint.enable();
       
-      rightFrontLever.moveTo(rightFrontLever.position()+400);
-      leftFrontLever.moveTo(leftFrontLever.position()+400);
-      rightBackLever.moveTo(rightBackLever.position()+400);
-      leftBackLever.moveTo(leftBackLever.position()+400);
+      rightFrontLever.moveTo(rightFrontLever.position()+300);
+      leftFrontLever.moveTo(leftFrontLever.position()+300);
+      rightBackLever.moveTo(rightBackLever.position()+300);
+      leftBackLever.moveTo(leftBackLever.position()+300);
 
       Serial.println(rightFrontLever.position());
+    }else if(incomingByte == 52){
+      // Wciśnięto 4'ke
+      switchStepperFunc('+');
+    }else if(incomingByte == 53){
+      // Wciśnięto 5'ke
+      switchStepperFunc('-');
+    }else if(incomingByte == 54){
+      // Wciśnięto 6'ke
+      currentStepper->moveTo(currentStepper->position()+50);
+    }else if(incomingByte == 55){
+      // Wciśnięto 7'ke
+      currentStepper->moveTo(currentStepper->position()+200);
+    }else if(incomingByte == 56){
+      // Wciśnięto 8'ke
+      currentStepper->moveTo(currentStepper->position()-50);
+    }else if(incomingByte == 57){
+      // Wciśnięto 9'ke
+      currentStepper->moveTo(currentStepper->position()-200);
+    }else if(incomingByte == 48){
+      // Wciśnięto 0'ro
+        leftFrontServo.attach(3);
+      rightFrontServo.attach(4);
+      leftBackServo.attach(5);
+      rightBackServo.attach(6);
+      
+      leftFrontServo.write(70);
+      leftBackServo.write(110);
+      rightFrontServo.write(110);
+      rightBackServo.write(70);
     }
   }
 
   
 }
-
-
-
-/*
-#include "DoggoStepper.h"
-
-
-DoggoStepper steppers[] = {
-  DoggoStepper(22, 23, 24),
-  DoggoStepper(25, 26, 27),
-  DoggoStepper(28, 29, 30),
-  DoggoStepper(31, 32, 33),
-  DoggoStepper(34, 35, 36),
-  DoggoStepper(37, 38, 39),
-  DoggoStepper(40, 41, 42),
-  DoggoStepper(43, 44, 45)
-};
-
-void setup() {
-
-  Serial.begin(115200);
-  steppers[0].disable();
-  steppers[1].disable();
-  steppers[2].disable();
-  steppers[3].disable();
-  steppers[4].disable();
-  steppers[5].disable();
-  steppers[6].disable();
-  steppers[7].disable();
-
-  
-  steppers[0].setMaxSpeed(1000); // x = 1000
-  steppers[0].setAcceleration(4000); // y = 4000
-  steppers[0].moveTo(500); // z = 5000
-  steppers[0].enable();
-}
-
-void loop() {
-  
-  steppers[0].disable();
-  steppers[1].disable();
-  steppers[2].disable();
-  steppers[3].disable();
-  steppers[4].disable();
-  steppers[5].disable();
-  steppers[6].disable();
-  steppers[7].disable();
-  
-  Serial.println("TEST");
-
-  if(steppers[0].distanceToGo() != 0){
-    steppers[0].run();
-  }
-  
-
-
-}
-
-*/
